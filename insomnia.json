@@ -1,0 +1,230 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-07-14T14:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_memocolor",
+      "parentId": null,
+      "_type": "workspace",
+      "name": "Memocolor API",
+      "description": ""
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_memocolor",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3333",
+        "bearer_token": ""
+      }
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_memocolor",
+      "name": "Auth"
+    },
+    {
+      "_id": "fld_rooms",
+      "_type": "request_group",
+      "parentId": "wrk_memocolor",
+      "name": "Rooms"
+    },
+    {
+      "_id": "fld_games",
+      "_type": "request_group",
+      "parentId": "wrk_memocolor",
+      "name": "Games"
+    },
+    {
+      "_id": "fld_game_turns",
+      "_type": "request_group",
+      "parentId": "wrk_memocolor",
+      "name": "GameTurns"
+    },
+
+    {
+      "_id": "req_register",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Register",
+      "method": "POST",
+      "url": "{{ base_url }}/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Jugador 1\",\n  \"email\": \"jugador1@mail.com\",\n  \"password\": \"secret123\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ base_url }}/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"jugador1@mail.com\",\n  \"password\": \"secret123\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ]
+    },
+    {
+      "_id": "req_me",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Me",
+      "method": "GET",
+      "url": "{{ base_url }}/me",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_logout",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ base_url }}/logout",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+
+    {
+      "_id": "req_create_room",
+      "_type": "request",
+      "parentId": "fld_rooms",
+      "name": "Crear Sala",
+      "method": "POST",
+      "url": "{{ base_url }}/rooms",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Sala 1\",\n  \"colorsConfig\": [\n    {\"x\":1, \"y\":1, \"hex\":\"#FF0000\"},\n    {\"x\":1, \"y\":2, \"hex\":\"#00FF00\"},\n    {\"x\":2, \"y\":1, \"hex\":\"#0000FF\"},\n    {\"x\":2, \"y\":2, \"hex\":\"#FFFF00\"}\n  ],\n  \"cantidadColores\": 4\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_join_room",
+      "_type": "request",
+      "parentId": "fld_rooms",
+      "name": "Unirse a Sala",
+      "method": "POST",
+      "url": "{{ base_url }}/rooms/{roomId}/join",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_list_rooms",
+      "_type": "request",
+      "parentId": "fld_rooms",
+      "name": "Listar Salas Disponibles",
+      "method": "GET",
+      "url": "{{ base_url }}/rooms",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_room_status",
+      "_type": "request",
+      "parentId": "fld_rooms",
+      "name": "Estado de Sala",
+      "method": "GET",
+      "url": "{{ base_url }}/rooms/{roomId}/status",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+
+
+    {
+      "_id": "req_create_game",
+      "_type": "request",
+      "parentId": "fld_games",
+      "name": "Crear Partida",
+      "method": "POST",
+      "url": "{{ base_url }}/games",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"roomId\": \"{roomId}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_get_game",
+      "_type": "request",
+      "parentId": "fld_games",
+      "name": "Obtener Partida",
+      "method": "GET",
+      "url": "{{ base_url }}/games/{gameId}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_finish_game",
+      "_type": "request",
+      "parentId": "fld_games",
+      "name": "Finalizar Partida",
+      "method": "POST",
+      "url": "{{ base_url }}/games/{gameId}/finish",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"winnerId\": \"{userId}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+
+    {
+      "_id": "req_create_turn",
+      "_type": "request",
+      "parentId": "fld_game_turns",
+      "name": "Registrar Turno",
+      "method": "POST",
+      "url": "{{ base_url }}/game-turns",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"gameId\": \"{gameId}\",\n  \"playerId\": \"{userId}\",\n  \"turnNumber\": 1,\n  \"sequenceInput\": [\n    {\"x\":1,\"y\":2,\"hex\":\"#00FF00\"}\n  ],\n  \"isCorrect\": true\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    },
+    {
+      "_id": "req_list_turns",
+      "_type": "request",
+      "parentId": "fld_game_turns",
+      "name": "Historial de Turnos",
+      "method": "GET",
+      "url": "{{ base_url }}/game-turns/game/{gameId}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
+      ]
+    }
+  ]
+}

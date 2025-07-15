@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecreto'
 
 export class TokenUtils {
   static signJwt(user: UserResponseDto): string {
-    return jwt.sign(user, JWT_SECRET, { expiresIn: '1h' })
+    return jwt.sign(user, JWT_SECRET, { expiresIn: '24h' })
   }
 
   static verifyJwt(token: string): UserResponseDto | null {
