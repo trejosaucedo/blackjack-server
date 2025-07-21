@@ -10,12 +10,13 @@ export default class GameTurnController {
     if (!user) {
       return ResponseHelper.error(response, 'No autenticado', 401)
     }
+
+    // 1) Validamos solo lo que viene del cliente
     const payload = await request.validateUsing(createGameTurnValidator)
-    const payloadWithPlayer = {
-      ...payload,
-      playerId: user.id,
-    }
-    const turn = await this.service.createTurn(payloadWithPlayer)
+
+    // 2) Llamamos al servicio con los DOS argumentos
+    const turn = await this.service.createTurn(payload, user.id)
+
     return ResponseHelper.success(response, 'Turno registrado', turn, 201)
   }
 

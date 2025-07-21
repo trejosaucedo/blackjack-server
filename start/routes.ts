@@ -21,7 +21,9 @@ router
     router.post('/rooms/:id/join', [RoomController, 'join'])
     router.get('/rooms', [RoomController, 'listWaiting'])
     router.get('/rooms/:id/status', [RoomController, 'status'])
-    router.post('/rooms/:id/start', [RoomController, 'start']).use(middleware.auth())
+    router.post('/rooms/:id/start', [RoomController, 'start'])
+    router.post('/rooms/:id/leave', [RoomController, 'leave'])
+    router.delete('/rooms/:id', [RoomController, 'cancel'])
   })
   .use(middleware.auth())
 

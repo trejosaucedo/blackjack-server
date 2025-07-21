@@ -10,6 +10,6 @@ export const createRoomValidator = vine.compile(
         hex: vine.string().regex(/^#[A-Fa-f0-9]{6}$/),
       })
     ),
-    cantidadColores: vine.number().min(2).max(16),
+    cantidadColores: vine.number().min(3).max(16),
   })
 )

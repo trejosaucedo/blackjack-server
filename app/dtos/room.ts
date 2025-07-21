@@ -12,7 +12,9 @@ export interface RoomResponseDto {
   id: string
   name: string
   hostPlayerId: string
+  hostPlayerName: string
   secondPlayerId: string | null
+  secondPlayerName: string | null
   status: 'waiting' | 'playing' | 'finished' | 'canceled'
   colorsConfig: { x: number; y: number; hex: string }[]
   cantidadColores: number

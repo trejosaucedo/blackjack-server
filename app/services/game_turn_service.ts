@@ -2,6 +2,7 @@ import { GameTurnRepository } from '#repositories/game_turn_repository'
 import type { CreateGameTurnRequestDto, GameTurnResponseDto } from '#dtos/game_turn'
 import { GameRepository } from '#repositories/game_repository'
 import { RoomRepository } from '#repositories/room_repository'
+import Game from '#models/game'
 
 export class GameTurnService {
   private turnRepo = new GameTurnRepository()
@@ -9,20 +10,32 @@ export class GameTurnService {
   private roomRepo = new RoomRepository()
 
   async createTurn(data: CreateGameTurnRequestDto, playerId: string): Promise<GameTurnResponseDto> {
+    // 1. Obtener los turnos previos y la secuencia previa
     const previousTurns = await this.turnRepo.findByGame(data.gameId)
     const lastSequence =
       previousTurns.length > 0 ? previousTurns[previousTurns.length - 1].sequenceInput : []
 
-    const inputSequenceWithoutLast = data.sequenceInput.slice(0, -1)
-    const isCorrect = this.compareSequences(lastSequence, inputSequenceWithoutLast)
+    // 2. Validar input:
+    //    - Debe tener longitud exacta = secuencia previa + 1
+    //    - Los primeros N colores deben coincidir exactamente
+    const input = data.sequenceInput
+    const expected = lastSequence
 
+    const isLengthOk = input.length === expected.length + 1
+    const isSameSoFar = expected.every(
+      (c, i) => c.x === input[i].x && c.y === input[i].y && c.hex === input[i].hex
+    )
+
+    const isCorrect = isLengthOk && isSameSoFar
+
+    // 3. Si es incorrecto, declarar ganador al oponente
     if (!isCorrect) {
       const winnerId = await this.getOpponentPlayerId(playerId, data.gameId)
       await this.gameRepo.finishGameWithWinner(data.gameId, winnerId)
     }
 
+    // 4. Crear el turno (isTurnFinished=false; se finalizará al agregar color)
     const turnNumber = previousTurns.length + 1
-
     const turn = await this.turnRepo.create({
       ...data,
       playerId,
@@ -31,6 +44,7 @@ export class GameTurnService {
       isTurnFinished: false,
     })
 
+    // 5. Devolver DTO con currentSequence
     return this.toResponse(turn)
   }
 
@@ -70,7 +84,7 @@ export class GameTurnService {
 
   async getTurnsByGame(gameId: string): Promise<GameTurnResponseDto[]> {
     const turns = await this.turnRepo.findByGame(gameId)
-    return turns.map(this.toResponse)
+    return Promise.all(turns.map((turn) => this.toResponse(turn)))
   }
 
   private compareSequences(
@@ -94,7 +108,8 @@ export class GameTurnService {
     return room.hostPlayerId === currentPlayerId ? room.secondPlayerId! : room.hostPlayerId
   }
 
-  toResponse(turn: any): GameTurnResponseDto {
+  async toResponse(turn: any): Promise<GameTurnResponseDto> {
+    const game = await Game.find(turn.gameId)
     return {
       id: turn.id,
       gameId: turn.gameId,
@@ -104,6 +119,7 @@ export class GameTurnService {
       isCorrect: turn.isCorrect,
       isTurnFinished: turn.isTurnFinished,
       createdAt: turn.createdAt.toISO() || '',
+      currentSequence: game?.currentSequence ?? [],
     }
   }
 }

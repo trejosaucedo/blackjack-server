@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, beforeCreate } from '@adonisjs/lucid/orm'
+import { BaseModel, column, beforeCreate, belongsTo } from '@adonisjs/lucid/orm'
 import { v4 as uuidv4 } from 'uuid'
+import User from './user.js'
+import * as relations from '@adonisjs/lucid/types/relations'
 
 export default class Room extends BaseModel {
   @column({ isPrimary: true })
@@ -14,6 +16,12 @@ export default class Room extends BaseModel {
 
   @column()
   declare secondPlayerId: string | null
+
+  @belongsTo(() => User, { foreignKey: 'hostPlayerId' })
+  declare hostPlayer: relations.BelongsTo<typeof User>
+
+  @belongsTo(() => User, { foreignKey: 'secondPlayerId' })
+  declare secondPlayer: relations.BelongsTo<typeof User>
 
   @column()
   declare status: 'waiting' | 'playing' | 'finished' | 'canceled'

@@ -34,7 +34,6 @@ export default class GameTurn extends BaseModel {
   @column()
   declare isTurnFinished: boolean
 
-
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

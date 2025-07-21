@@ -12,6 +12,7 @@ export interface GameTurnResponseDto {
   isCorrect: boolean
   isTurnFinished: boolean
   createdAt: string
+  currentSequence: { x: number; y: number; hex: string }[] // <-- nuevo
 }
 
 export interface GameTurnCreateInternalDto {

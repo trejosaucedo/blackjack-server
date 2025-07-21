@@ -1,5 +1,6 @@
+import Room from '#models/room'
+import { CreateGameRequestDto, GameResponseDto } from '#dtos/game'
 import { GameRepository } from '#repositories/game_repository'
-import type { CreateGameRequestDto, GameResponseDto } from '#dtos/game'
 import Game from '#models/game'
 
 export class GameService {
@@ -10,24 +11,40 @@ export class GameService {
     return this.toResponse(game)
   }
 
-  async finishGame(gameId: string, winnerId: string): Promise<GameResponseDto | null> {
-    const game = await this.repo.finishGame(gameId, winnerId)
-    return game ? this.toResponse(game) : null
-  }
-
   async getGame(gameId: string): Promise<GameResponseDto | null> {
     const game = await this.repo.findById(gameId)
-    return game ? this.toResponse(game) : null
+    if (!game) return null
+    return this.toResponse(game)
   }
 
-  toResponse(game: Game): GameResponseDto {
+  // --- AHORA ASYNC ---
+  async toResponse(game: Game): Promise<GameResponseDto> {
+    const room = await Room.query()
+      .where('id', game.roomId)
+      .preload('hostPlayer')
+      .preload('secondPlayer')
+      .firstOrFail()
+
     return {
       id: game.id,
-      roomId: game.roomId,
+      room: {
+        id: room.id,
+        name: room.name,
+        hostPlayerId: room.hostPlayerId,
+        hostPlayerName: room.hostPlayer?.name ?? '',
+        secondPlayerId: room.secondPlayerId,
+        secondPlayerName: room.secondPlayer?.name ?? '',
+        status: room.status,
+        colorsConfig: room.colorsConfig,
+        cantidadColores: room.cantidadColores,
+        createdAt: room.createdAt.toISO() ?? '',
+        updatedAt: room.updatedAt.toISO() ?? '',
+      },
       status: game.status,
       winnerId: game.winnerId,
-      createdAt: game.createdAt.toISO() || '',
-      updatedAt: game.updatedAt.toISO() || '',
+      currentSequence: game.currentSequence ?? [],
+      createdAt: game.createdAt.toISO() ?? '',
+      updatedAt: game.updatedAt.toISO() ?? '',
     }
   }
 }

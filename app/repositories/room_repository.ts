@@ -29,8 +29,8 @@ export class RoomRepository {
     return room
   }
 
-  async getRoomStatus(id: string): Promise<Room | null> {
-    return Room.find(id)
+  async getRoomStatus(roomId: string): Promise<Room | null> {
+    return Room.query().where('id', roomId).preload('hostPlayer').preload('secondPlayer').first()
   }
 
   async startRoom(id: string, userId: string): Promise<Room | null> {
@@ -44,5 +44,9 @@ export class RoomRepository {
     room.status = 'playing'
     await room.save()
     return room
+  }
+
+  async delete(id: string): Promise<void> {
+    await Room.query().where('id', id).delete()
   }
 }

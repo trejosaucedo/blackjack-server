@@ -79,4 +79,41 @@ export default class RoomController {
       return ResponseHelper.error(response, msg, 400)
     }
   }
+
+  async leave({ request, response, user }: HttpContext) {
+    if (!user) {
+      return ResponseHelper.error(response, 'No autenticado', 401)
+    }
+
+    const roomId = request.param('id')
+    if (!roomId) {
+      return ResponseHelper.error(response, 'ID de sala requerido', 400)
+    }
+
+    try {
+      const updatedRoom = await this.service.leaveRoom(roomId, user.id)
+      return ResponseHelper.success(response, 'Has salido de la sala', updatedRoom)
+    } catch (error) {
+      return ResponseHelper.error(response, (error as Error).message, 400)
+    }
+  }
+
+  async cancel({ request, response, user }: HttpContext) {
+    if (!user) {
+      return ResponseHelper.error(response, 'No autenticado', 401)
+    }
+
+    const roomId = request.param('id')
+    if (!roomId) {
+      return ResponseHelper.error(response, 'ID de sala requerido', 400)
+    }
+
+    try {
+      await this.service.cancelRoom(roomId, user.id)
+      return ResponseHelper.success(response, 'Sala cancelada')
+    } catch (error) {
+      return ResponseHelper.error(response, (error as Error).message, 400)
+    }
+  }
+
 }

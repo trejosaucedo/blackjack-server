@@ -12,6 +12,10 @@ export class GameRepository {
     return Game.find(id)
   }
 
+  async findByRoomId(roomId: string): Promise<Game | null> {
+    return Game.query().where('room_id', roomId).first()
+  }
+
   async finishGameWithWinner(gameId: string, winnerId: string): Promise<void> {
     const game = await Game.find(gameId)
     if (!game) throw new Error('Juego no encontrado')
