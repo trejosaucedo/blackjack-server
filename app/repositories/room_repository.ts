@@ -1,52 +1,33 @@
 import Room from '#models/room'
-import type { CreateRoomRequestDto } from '#dtos/room'
+import RoomPlayer from '#models/room_player'
 
 export class RoomRepository {
-  async create(data: CreateRoomRequestDto, hostPlayerId: string): Promise<Room> {
-    return Room.create({
-      cantidadColores: data.cantidadColores,
-      colorsConfig: data.colorsConfig,
-      hostPlayerId,
-      name: data.name,
-      status: 'waiting',
-    })
+  async createRoom(data: Partial<Room>) {
+    return Room.create(data)
   }
 
-  async findById(id: string): Promise<Room | null> {
+  async findAvailableRooms() {
+    return Room.query().whereIn('status', ['waiting_players', 'waiting_start', 'full'])
+  }
+
+  async findRoomById(id: string) {
     return Room.find(id)
   }
 
-  async findWaitingRooms(): Promise<Room[]> {
-    return Room.query().where('status', 'waiting').exec()
+  async createPlayer(roomId: string, userId: string, seatIndex: number) {
+    return RoomPlayer.create({ roomId, userId, seatIndex })
   }
 
-  async joinRoom(id: string, userId: string): Promise<Room | null> {
-    const room = await Room.find(id)
-    if (!room || room.secondPlayerId || room.hostPlayerId === userId) return null
-
-    room.secondPlayerId = userId
-    await room.save()
-    return room
+  async getPlayersInRoom(roomId: string) {
+    return RoomPlayer.query().where('roomId', roomId)
   }
 
-  async getRoomStatus(roomId: string): Promise<Room | null> {
-    return Room.query().where('id', roomId).preload('hostPlayer').preload('secondPlayer').first()
+  async removePlayer(roomId: string, userId: string) {
+    await RoomPlayer.query().where('roomId', roomId).andWhere('userId', userId).delete()
   }
 
-  async startRoom(id: string, userId: string): Promise<Room | null> {
-    const room = await Room.find(id)
-    if (!room) return null
-
-    if (room.hostPlayerId !== userId) return null
-
-    if (!room.secondPlayerId) return null
-
-    room.status = 'playing'
-    await room.save()
-    return room
-  }
-
-  async delete(id: string): Promise<void> {
-    await Room.query().where('id', id).delete()
+  async deleteRoom(roomId: string) {
+    await RoomPlayer.query().where('roomId', roomId).delete()
+    await Room.query().where('id', roomId).delete()
   }
 }

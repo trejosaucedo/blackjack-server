@@ -1,32 +1,36 @@
-export interface CreateGameRequestDto {
-  roomId: string
-  currentSequence: {
-    x: number
-    y: number
-    hex: string
-  }[]
+export interface Card {
+  valor: string // "A", "2", ..., "10", "J", "Q", "K"
+  valorNumerico: number // 1-13
+  palo: string // "corazones", "picas", "tréboles", "diamantes"
 }
 
-export interface RoomDto {
-  id: string
-  name: string
-  hostPlayerId: string
-  hostPlayerName: string
-  secondPlayerId: string | null
-  secondPlayerName: string | null
-  status: 'waiting' | 'playing' | 'finished' | 'canceled'
-  colorsConfig: { x: number; y: number; hex: string }[]
-  cantidadColores: number
-  createdAt: string
-  updatedAt: string
+export interface CreateGameDto {
+  roomId: string
 }
 
 export interface GameResponseDto {
   id: string
-  room: RoomDto
-  status: 'playing' | 'finished'
-  winnerId: string | null
-  currentSequence: { x: number; y: number; hex: string }[]
-  createdAt: string
-  updatedAt: string
+  roomId: string
+  status: 'in_progress' | 'between_rounds' | 'ended'
+  currentRound: RoundResponseDto | null
+  hostId: string
+}
+
+export interface RoundResponseDto {
+  id: string
+  gameId: string
+  status: 'in_progress' | 'ended'
+  deckCount: number
+  turnSeatIndex: number
+  players: RoundPlayerResponseDto[]
+  hostId: string
+}
+
+export interface RoundPlayerResponseDto {
+  userId: string
+  cartas: Card[]
+  state: 'jugando' | 'plantado' | 'bust' | 'bj'
+  puntos: number
+  ganador: boolean
+  nombre: string // Para mostrar nombres en la vista
 }

@@ -1,23 +1,22 @@
-export interface CreateRoomRequestDto {
+export interface CreateRoomDto {
   name: string
-  colorsConfig: { x: number; y: number; hex: string }[]
-  cantidadColores: number
 }
 
-export interface RoomStartResponseDto extends RoomResponseDto {
-  gameId: string
+export interface JoinRoomDto {
+  roomId: string
+}
+
+export interface RoomPlayerDto {
+  id: string
+  name: string
+  seatIndex: number
 }
 
 export interface RoomResponseDto {
   id: string
   name: string
-  hostPlayerId: string
-  hostPlayerName: string
-  secondPlayerId: string | null
-  secondPlayerName: string | null
-  status: 'waiting' | 'playing' | 'finished' | 'canceled'
-  colorsConfig: { x: number; y: number; hex: string }[]
-  cantidadColores: number
-  createdAt: string
-  updatedAt: string
+  hostId: string
+  status: 'waiting_players' | 'waiting_start' | 'full' | 'in_game' | 'ended'
+  players: RoomPlayerDto[]
+  backgroundIndex: number
 }

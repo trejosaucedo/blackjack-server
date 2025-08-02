@@ -1,230 +1,188 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2025-07-14T14:00:00.000Z",
-  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "__export_date": "2025-07-31T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2024.3.0",
   "resources": [
     {
-      "_id": "wrk_memocolor",
+      "_id": "wrk_blackjack_demo",
       "parentId": null,
-      "_type": "workspace",
-      "name": "Memocolor API",
-      "description": ""
+      "modified": 1695000000000,
+      "created": 1695000000000,
+      "name": "Blackjack Backend Demo",
+      "_type": "workspace"
     },
     {
-      "_id": "env_base",
-      "_type": "environment",
-      "parentId": "wrk_memocolor",
+      "_id": "env_blackjack_demo",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000000,
+      "created": 1695000000000,
       "name": "Base Environment",
       "data": {
         "base_url": "http://localhost:3333",
-        "bearer_token": ""
-      }
-    },
-    {
-      "_id": "fld_auth",
-      "_type": "request_group",
-      "parentId": "wrk_memocolor",
-      "name": "Auth"
-    },
-    {
-      "_id": "fld_rooms",
-      "_type": "request_group",
-      "parentId": "wrk_memocolor",
-      "name": "Rooms"
-    },
-    {
-      "_id": "fld_games",
-      "_type": "request_group",
-      "parentId": "wrk_memocolor",
-      "name": "Games"
-    },
-    {
-      "_id": "fld_game_turns",
-      "_type": "request_group",
-      "parentId": "wrk_memocolor",
-      "name": "GameTurns"
+        "token": "AQUI_TU_BEARER_TOKEN"
+      },
+      "_type": "environment"
     },
 
     {
-      "_id": "req_register",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Register",
+      "_id": "req_start_game",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000001,
+      "created": 1695000000001,
+      "url": "{{ base_url }}/games/start",
+      "name": "1. Iniciar Partida (POST /games/start)",
+      "description": "Inicia una partida en una room. Cambia 'roomId' por una válida.",
       "method": "POST",
-      "url": "{{ base_url }}/register",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"name\": \"Jugador 1\",\n  \"email\": \"jugador1@mail.com\",\n  \"password\": \"secret123\"\n}"
+        "text": "{\n  \"roomId\": \"AQUI_TU_ROOM_ID\"\n}"
       },
+      "parameters": [],
       "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ]
-    },
-    {
-      "_id": "req_login",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Login",
-      "method": "POST",
-      "url": "{{ base_url }}/login",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"email\": \"jugador1@mail.com\",\n  \"password\": \"secret123\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" }
-      ]
-    },
-    {
-      "_id": "req_me",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Me",
-      "method": "GET",
-      "url": "{{ base_url }}/me",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-    {
-      "_id": "req_logout",
-      "_type": "request",
-      "parentId": "fld_auth",
-      "name": "Logout",
-      "method": "POST",
-      "url": "{{ base_url }}/logout",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
     },
 
     {
-      "_id": "req_create_room",
-      "_type": "request",
-      "parentId": "fld_rooms",
-      "name": "Crear Sala",
-      "method": "POST",
-      "url": "{{ base_url }}/rooms",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"name\": \"Sala 1\",\n  \"colorsConfig\": [\n    {\"x\":1, \"y\":1, \"hex\":\"#FF0000\"},\n    {\"x\":1, \"y\":2, \"hex\":\"#00FF00\"},\n    {\"x\":2, \"y\":1, \"hex\":\"#0000FF\"},\n    {\"x\":2, \"y\":2, \"hex\":\"#FFFF00\"}\n  ],\n  \"cantidadColores\": 4\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-    {
-      "_id": "req_join_room",
-      "_type": "request",
-      "parentId": "fld_rooms",
-      "name": "Unirse a Sala",
-      "method": "POST",
-      "url": "{{ base_url }}/rooms/{roomId}/join",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-    {
-      "_id": "req_list_rooms",
-      "_type": "request",
-      "parentId": "fld_rooms",
-      "name": "Listar Salas Disponibles",
+      "_id": "req_get_current",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000002,
+      "created": 1695000000002,
+      "url": "{{ base_url }}/games/current",
+      "name": "2. Estado Actual (GET /games/current)",
+      "description": "Obtener estado actual de la partida. Cambia 'gameId' por el recibido al iniciar partida.",
       "method": "GET",
-      "url": "{{ base_url }}/rooms",
+      "body": {},
+      "parameters": [
+        {
+          "name": "gameId",
+          "value": "AQUI_TU_GAME_ID"
+        }
+      ],
       "headers": [
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-    {
-      "_id": "req_room_status",
-      "_type": "request",
-      "parentId": "fld_rooms",
-      "name": "Estado de Sala",
-      "method": "GET",
-      "url": "{{ base_url }}/rooms/{roomId}/status",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-
-
-    {
-      "_id": "req_create_game",
-      "_type": "request",
-      "parentId": "fld_games",
-      "name": "Crear Partida",
-      "method": "POST",
-      "url": "{{ base_url }}/games",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"roomId\": \"{roomId}\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-    {
-      "_id": "req_get_game",
-      "_type": "request",
-      "parentId": "fld_games",
-      "name": "Obtener Partida",
-      "method": "GET",
-      "url": "{{ base_url }}/games/{gameId}",
-      "headers": [
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
-    },
-    {
-      "_id": "req_finish_game",
-      "_type": "request",
-      "parentId": "fld_games",
-      "name": "Finalizar Partida",
-      "method": "POST",
-      "url": "{{ base_url }}/games/{gameId}/finish",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"winnerId\": \"{userId}\"\n}"
-      },
-      "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ token }}"
+        }
+      ],
+      "_type": "request"
     },
 
     {
-      "_id": "req_create_turn",
-      "_type": "request",
-      "parentId": "fld_game_turns",
-      "name": "Registrar Turno",
+      "_id": "req_hit",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000003,
+      "created": 1695000000003,
+      "url": "{{ base_url }}/games/hit",
+      "name": "3. Pedir Carta (POST /games/hit)",
+      "description": "Pide carta para el jugador autenticado. Cambia 'gameId'. Solo puedes si es tu turno.",
       "method": "POST",
-      "url": "{{ base_url }}/game-turns",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"gameId\": \"{gameId}\",\n  \"playerId\": \"{userId}\",\n  \"turnNumber\": 1,\n  \"sequenceInput\": [\n    {\"x\":1,\"y\":2,\"hex\":\"#00FF00\"}\n  ],\n  \"isCorrect\": true\n}"
+        "text": "{\n  \"gameId\": \"AQUI_TU_GAME_ID\"\n}"
       },
+      "parameters": [],
       "headers": [
-        { "name": "Content-Type", "value": "application/json" },
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
     },
+
     {
-      "_id": "req_list_turns",
-      "_type": "request",
-      "parentId": "fld_game_turns",
-      "name": "Historial de Turnos",
-      "method": "GET",
-      "url": "{{ base_url }}/game-turns/game/{gameId}",
+      "_id": "req_stand",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000004,
+      "created": 1695000000004,
+      "url": "{{ base_url }}/games/stand",
+      "name": "4. Plantarse (POST /games/stand)",
+      "description": "El jugador autenticado se planta. Solo si es su turno.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"gameId\": \"AQUI_TU_GAME_ID\"\n}"
+      },
+      "parameters": [],
       "headers": [
-        { "name": "Authorization", "value": "Bearer {{ bearer_token }}" }
-      ]
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_continue_round",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000005,
+      "created": 1695000000005,
+      "url": "{{ base_url }}/games/continue-round",
+      "name": "5. Continuar Ronda (POST /games/continue-round)",
+      "description": "Confirmar si sigues en el juego después de una ronda. 'decision' true para sí, false para no.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"gameId\": \"AQUI_TU_GAME_ID\",\n  \"decision\": true\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_cancel_game",
+      "parentId": "wrk_blackjack_demo",
+      "modified": 1695000000006,
+      "created": 1695000000006,
+      "url": "{{ base_url }}/games/cancel",
+      "name": "6. Cancelar Juego (POST /games/cancel)",
+      "description": "Cancela el juego.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"gameId\": \"AQUI_TU_GAME_ID\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ token }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
     }
   ]
 }

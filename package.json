@@ -66,6 +66,7 @@
     "mongodb": "^6.17.0",
     "mysql2": "^3.14.1",
     "reflect-metadata": "^0.2.2",
+    "socket.io": "^4.8.1",
     "uuid": "^11.1.0"
   },
   "hotHook": {

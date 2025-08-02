@@ -1,5 +1,6 @@
-import { DateTime } from 'luxon'
-import { BaseModel, column, beforeCreate } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column, hasMany } from '@adonisjs/lucid/orm'
+import Round from './round.js'
+import * as relations from '@adonisjs/lucid/types/relations'
 import { v4 as uuidv4 } from 'uuid'
 
 export default class Game extends BaseModel {
@@ -10,29 +11,10 @@ export default class Game extends BaseModel {
   declare roomId: string
 
   @column()
-  declare status: 'playing' | 'finished'
+  declare status: 'in_progress' | 'between_rounds' | 'ended'
 
-  @column()
-  declare winnerId: string | null
-
-  @column({
-    prepare: (value: { x: number; y: number; hex: string }[]) => JSON.stringify(value),
-    consume: (value: any) => {
-      if (typeof value === 'object' && value !== null) return value
-      try {
-        return JSON.parse(value)
-      } catch {
-        return []
-      }
-    },
-  })
-  declare currentSequence: { x: number; y: number; hex: string }[]
-
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  @hasMany(() => Round)
+  declare rounds: relations.HasMany<typeof Round>
 
   @beforeCreate()
   static assignUuid(game: Game) {
