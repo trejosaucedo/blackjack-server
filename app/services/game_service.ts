@@ -8,135 +8,267 @@ type DecisionMap = Map<string, { [userId: string]: boolean }>
 
 export class GameService {
   private repo = new GameRepository()
-  private roomRepo = new RoomRepository()
+  roomRepo = new RoomRepository()
   private static decisions: DecisionMap = new Map()
 
   // Crear un juego
   async createGame(roomId: string) {
     const game = await this.repo.createGame(roomId)
-    console.log('[DEBUG][createGame] Nuevo juego creado:', game)
     return game
   }
 
   async startRound(gameId: string) {
-    try {
-      console.log('[DEBUG][startRound] INICIO - gameId:', gameId)
-
-      const game = await this.repo.findGameById(gameId)
-      if (!game) {
-        console.error('[ERROR][startRound] Game no encontrado:', gameId)
-        throw new Error('Game no encontrado')
-      }
-
-      Ws.io.to(game.roomId).emit('room:started', { gameId: game.id })
-      Ws.io.to('lobby').emit('room:updated')
-      Ws.io.to(game.roomId).emit('room:updated')
-      console.log('[DEBUG][startRound] Game OK:', game.id)
-
-      const room = await this.roomRepo.findRoomById(game.roomId)
-      if (!room) {
-        console.error('[ERROR][startRound] Room no encontrada:', game.roomId)
-        throw new Error('Room no encontrada')
-      }
-      console.log('[DEBUG][startRound] Room OK:', room.id)
-
-      const players = await this.roomRepo.getPlayersInRoom(room.id)
-      if (!players?.length) {
-        console.error('[ERROR][startRound] No hay jugadores en la room:', room.id)
-        throw new Error('No hay jugadores en la room')
-      }
-      console.log(
-        '[DEBUG][startRound] Players encontrados:',
-        players.map((p) => `${p.userId}:${p.seatIndex}`)
-      )
-
-      const deck = this.shuffleDeck()
-      console.log('[DEBUG][startRound] Deck shuffled:', Array.isArray(deck) ? deck.length : deck)
-      const orderedPlayers = [...players].sort((a, b) => a.seatIndex - b.seatIndex)
-
-      // Crear el round (deck serializado en createRound)
-      const round = await this.repo.createRound(game.id, deck, orderedPlayers[0].seatIndex)
-      console.log('[DEBUG][startRound] Round creado:', round?.id, round?.$isPersisted)
-
-      // DESERIALIZAR deck antes de manipular
-      let roundDeck = typeof round.deck === 'string' ? JSON.parse(round.deck) : round.deck
-
-      // Reparte la primera carta
-      for (const player of orderedPlayers) {
-        const carta = roundDeck.shift()
-        const cartas = [carta]
-        const puntos = this.sumarPuntos(cartas)
-        await this.repo.createRoundPlayer(
-          round.id,
-          player.userId,
-          JSON.stringify(cartas), // Serializa aquí
-          'jugando',
-          puntos,
-          false
-        )
-        console.log(`[DEBUG][startRound] 1ra carta para ${player.userId}:`, carta)
-      }
-      // Guarda deck actualizado
-      round.deck = JSON.stringify(roundDeck)
-      await round.save()
-      console.log('[DEBUG][startRound] Round guardado después de la 1ra carta.')
-
-      // Reparte la segunda carta
-      for (const player of orderedPlayers) {
-        const rp = await this.repo.findRoundPlayerByUser(round.id, player.userId)
-        if (!rp) {
-          console.error('[ERROR][startRound] No se encontró el round player:', player.userId)
-          throw new Error('No se encontró el round player')
-        }
-        const carta = roundDeck.shift()
-        let cartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
-        cartas.push(carta)
-        rp.cartas = JSON.stringify(cartas) // <-- Serializa aquí también
-        rp.puntos = this.sumarPuntos(cartas)
-        await rp.save()
-        console.log(`[DEBUG][startRound] 2da carta para ${player.userId}:`, carta)
-      }
-      // Guarda deck actualizado
-      round.deck = JSON.stringify(roundDeck)
-      await round.save()
-      console.log('[DEBUG][startRound] Round guardado después de la 2da carta.')
-
-      // Revisar blackjacks y avanzar/terminar ronda si aplica
-      await this.checkBlackjacksAndAdvance(round, game)
-      console.log('[DEBUG][startRound] checkBlackjacksAndAdvance completado.')
-
-      return round
-    } catch (error) {
-      console.error('[ERROR][startRound] Excepción:', error)
-      throw error
-    }
-  }
-
-  // Método para agregar hostId al GameResponseDto
-  private async addHostIdToGame(game: any): Promise<any> {
-    const room = await this.roomRepo.findRoomById(game.roomId) // Obtener la sala asociada
-    if (!room) throw new Error('Room no encontrada')
-
-    return {
-      id: game.id,
-      roomId: game.roomId,
-      status: game.status,
-      currentRound: game.currentRound,
-      hostId: room.hostId,
-    }
-  }
-
-  // Este método devolverá el GameResponseDto con el hostId incluido
-  async getGameWithHostId(gameId: string): Promise<any> {
     const game = await this.repo.findGameById(gameId)
     if (!game) throw new Error('Game no encontrado')
 
-    return this.addHostIdToGame(game)
+    const room = await this.roomRepo.findRoomById(game.roomId)
+    if (!room) throw new Error('Room no encontrada')
+
+    // Cambiar status a 'in_progress' si no lo está
+    if (room.status !== 'in_game') {
+      room.status = 'in_game'
+      await room.save()
+    }
+
+    game.status = 'in_progress'
+    await game.save()
+
+    Ws.io.to(game.roomId).emit('room:started', { gameId: game.id })
+    Ws.io.to('lobby').emit('room:updated')
+    Ws.io.to(game.roomId).emit('room:updated')
+
+    const players = await this.roomRepo.getPlayersInRoom(room.id)
+    if (!players?.length) throw new Error('No hay jugadores en la room')
+
+    const deck = this.shuffleDeck()
+    const orderedPlayers = [...players].sort((a, b) => a.seatIndex - b.seatIndex)
+    const round = await this.repo.createRound(game.id, deck, orderedPlayers[0].seatIndex)
+    let roundDeck = typeof round.deck === 'string' ? JSON.parse(round.deck) : round.deck
+
+    for (const player of orderedPlayers) {
+      const carta = roundDeck.shift()
+      const cartas = [carta]
+      const puntos = this.sumarPuntos(cartas)
+      await this.repo.createRoundPlayer(
+        round.id,
+        player.userId,
+        JSON.stringify(cartas),
+        'jugando',
+        puntos,
+        false
+      )
+    }
+    round.deck = JSON.stringify(roundDeck)
+    await round.save()
+
+    for (const player of orderedPlayers) {
+      const rp = await this.repo.findRoundPlayerByUser(round.id, player.userId)
+      if (!rp) throw new Error('No se encontró el round player')
+      const carta = roundDeck.shift()
+      let cartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
+      cartas.push(carta)
+      const puntos = this.sumarPuntos(cartas)
+      rp.cartas = JSON.stringify(cartas)
+
+      if (cartas.length === 2 && puntos === 21) {
+        rp.state = 'bj'
+        rp.ganador = true
+      } else if (puntos > 21) {
+        rp.state = 'bust'
+        rp.ganador = false
+      } else {
+        rp.state = 'jugando'
+        rp.ganador = false
+      }
+      rp.puntos = puntos
+      await rp.save()
+    }
+    round.deck = JSON.stringify(roundDeck)
+    await round.save()
+
+    await this.advanceTurnIfCurrentIsInvalid(round)
+    await this.checkBlackjacksAndAdvance(round, game)
+    return round
   }
 
-  // Otros métodos como shuffleDeck(), sumarPuntos(), etc. permanecen igual
+  private async advanceTurnIfCurrentIsInvalid(round: any) {
+    const roundPlayers = await this.repo.findRoundPlayers(round.id)
+    let count = 0
+    while (roundPlayers[round.turnSeatIndex]?.state !== 'jugando' && count < roundPlayers.length) {
+      round.turnSeatIndex = (round.turnSeatIndex + 1) % roundPlayers.length
+      count++
+    }
+    const algunoJugando = roundPlayers.some((p) => p.state === 'jugando')
+    if (!algunoJugando) {
+      // FIN DE RONDA: Round queda en ended, Game pasa a between_rounds
+      round.status = 'ended'
+      await round.save()
+      const game = await this.repo.findGameById(round.gameId)
+      if (game) {
+        game.status = 'between_rounds'
+        await game.save()
+        Ws.io.to(game.id).emit('round:ended')
+      }
+      return
+    }
+    await round.save()
+  }
+
+  private async checkBlackjacksAndAdvance(round: any, game: any) {
+    const roundPlayers = await this.repo.findRoundPlayers(round.id)
+    const bjPlayers = roundPlayers.filter((rp) => {
+      let cartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
+      return cartas.length === 2 && this.sumarPuntos(cartas) === 21
+    })
+    if (bjPlayers.length > 0) {
+      for (const rp of roundPlayers) {
+        let cartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
+        if (cartas.length === 2 && this.sumarPuntos(cartas) === 21) {
+          rp.state = 'bj'
+          rp.ganador = true
+        } else {
+          rp.state = 'plantado'
+          rp.ganador = false
+        }
+        await rp.save()
+      }
+      round.status = 'ended'
+      await round.save()
+      game.status = 'between_rounds'
+      await game.save()
+      Ws.io.to(game.id).emit('round:ended')
+      return true
+    }
+    return false
+  }
+
+  private async advanceTurnOrFinishRound(round: any) {
+    const roundPlayers = await this.repo.findRoundPlayers(round.id)
+    const activos = roundPlayers.filter((rp) => rp.state === 'jugando')
+    const game = await this.repo.findGameById(round.gameId)
+    if (!game) throw new Error('Game no encontrado')
+    if (activos.length === 0) {
+      let max = 0
+      for (const rp of roundPlayers) {
+        if (rp.state !== 'bust' && rp.puntos > max && rp.puntos <= 21) {
+          max = rp.puntos
+        }
+      }
+      for (const rp of roundPlayers) {
+        rp.ganador = rp.puntos === max && max > 0 && rp.state !== 'bust'
+        await rp.save()
+      }
+      round.status = 'ended'
+      await round.save()
+      game.status = 'between_rounds'
+      await game.save()
+      Ws.io.to(game.id).emit('round:ended')
+      return
+    }
+    const roomPlayers = await this.roomRepo.getPlayersInRoom(game.roomId)
+    const seatIndexesJugando = activos
+      .map((rp) => {
+        const foundRoomPlayer = roomPlayers.find((player) => player.userId === rp.userId)
+        return foundRoomPlayer?.seatIndex ?? 0
+      })
+      .sort((a, b) => a - b)
+    let next = null
+    for (let i = 1; i <= seatIndexesJugando.length; i++) {
+      const idx = (round.turnSeatIndex + i) % roomPlayers.length
+      if (seatIndexesJugando.includes(idx)) {
+        next = idx
+        break
+      }
+    }
+    if (next === null) {
+      round.status = 'ended'
+      await round.save()
+      game.status = 'between_rounds'
+      await game.save()
+      Ws.io.to(game.id).emit('round:ended')
+      return
+    }
+    round.turnSeatIndex = next
+    await round.save()
+    Ws.io.to(game.id).emit('turn:next')
+  }
+
+  async hit(gameId: string, userId: string) {
+    const round = await this.repo.findCurrentRound(gameId)
+    if (!round) throw new Error('No hay ronda en curso')
+
+    const roundPlayer = await this.repo.findRoundPlayerByUser(round.id, userId)
+    if (!roundPlayer || roundPlayer.state !== 'jugando') throw new Error('No puedes pedir carta')
+
+    const game = await this.repo.findGameById(gameId)
+    if (!game) throw new Error('Game no encontrado')
+
+    const roomPlayers = await this.roomRepo.getPlayersInRoom(game.roomId)
+    const seatIndex = roomPlayers.find((p) => p.userId === userId)?.seatIndex
+
+    if (seatIndex !== round.turnSeatIndex) {
+      throw new Error('No es tu turno')
+    }
+
+    let deck = typeof round.deck === 'string' ? JSON.parse(round.deck) : round.deck
+    const carta = deck.shift()
+    let cartas =
+      typeof roundPlayer.cartas === 'string' ? JSON.parse(roundPlayer.cartas) : roundPlayer.cartas
+    cartas.push(carta)
+    roundPlayer.cartas = JSON.stringify(cartas)
+    roundPlayer.puntos = this.sumarPuntos(cartas)
+
+    if (roundPlayer.puntos > 21) {
+      roundPlayer.state = 'bust'
+      await roundPlayer.save()
+      round.deck = JSON.stringify(deck)
+      await round.save()
+      await this.advanceTurnOrFinishRound(round)
+      return
+    }
+    if (cartas.length === 2 && roundPlayer.puntos === 21) {
+      roundPlayer.state = 'bj'
+      roundPlayer.ganador = true
+      await roundPlayer.save()
+      round.deck = JSON.stringify(deck)
+      await round.save()
+      await this.advanceTurnOrFinishRound(round)
+      return
+    }
+    if (roundPlayer.puntos === 21) {
+      roundPlayer.state = 'plantado'
+      await roundPlayer.save()
+      round.deck = JSON.stringify(deck)
+      await round.save()
+      await this.advanceTurnOrFinishRound(round)
+      return
+    }
+    await roundPlayer.save()
+    round.deck = JSON.stringify(deck)
+    await round.save()
+
+    Ws.io.to(game.id).emit('turn:next')
+  }
+
+  async stand(gameId: string, userId: string) {
+    const round = await this.repo.findCurrentRound(gameId)
+    if (!round) throw new Error('No hay ronda en curso')
+    const roundPlayer = await this.repo.findRoundPlayerByUser(round.id, userId)
+    if (!roundPlayer || roundPlayer.state !== 'jugando') throw new Error('No puedes plantarte')
+
+    const game = await this.repo.findGameById(gameId)
+    if (!game) throw new Error('Game no encontrado')
+    const roomPlayers = await this.roomRepo.getPlayersInRoom(game.roomId)
+    const seatIndex = roomPlayers.find((p) => p.userId === userId)?.seatIndex
+    if (seatIndex !== round.turnSeatIndex) throw new Error('No es tu turno')
+
+    roundPlayer.state = 'plantado'
+    await roundPlayer.save()
+    await this.advanceTurnOrFinishRound(round)
+  }
+
   private shuffleDeck(): Card[] {
-    const palos = ['corazones', 'picas', 'tréboles', 'diamantes']
+    const palos = ['corazones', 'picas', 'treboles', 'diamantes']
     const valores = [
       { valor: 'A', valorNumerico: 1 },
       ...Array.from({ length: 9 }, (_, i) => ({ valor: `${i + 2}`, valorNumerico: i + 2 })),
@@ -171,141 +303,27 @@ export class GameService {
     return puntos
   }
 
-  // Checar blackjacks y avanzar/terminar ronda si aplica
-  private async checkBlackjacksAndAdvance(round: any, game: any) {
-    const roundPlayers = await this.repo.findRoundPlayers(round.id)
-    const bjPlayers = roundPlayers.filter((rp) => {
-      let cartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
-      return cartas.length === 2 && this.sumarPuntos(cartas) === 21
-    })
+  private async addHostIdToGame(game: any): Promise<any> {
+    const room = await this.roomRepo.findRoomById(game.roomId)
+    if (!room) throw new Error('Room no encontrada')
 
-    if (bjPlayers.length > 0) {
-      for (const rp of roundPlayers) {
-        let cartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
-        if (cartas.length === 2 && this.sumarPuntos(cartas) === 21) {
-          rp.state = 'bj'
-          rp.ganador = true
-        } else {
-          rp.state = 'plantado'
-          rp.ganador = false
-        }
-        await rp.save()
-      }
-      round.status = 'ended'
-      await round.save()
-      Ws.io.to(game.id).emit('round:ended')
-      return true
+    return {
+      id: game.id,
+      roomId: game.roomId,
+      status: game.status,
+      currentRound: game.currentRound,
+      hostId: room.hostId,
     }
-    return false
   }
 
-  private async advanceTurnOrFinishRound(round: any) {
-    const roundPlayers = await this.repo.findRoundPlayers(round.id)
-    const activos = roundPlayers.filter((rp) => rp.state === 'jugando')
-    const game = await this.repo.findGameById(round.gameId)
-    if (!game) throw new Error('Game no encontrado')
-    if (activos.length === 0) {
-      let max = 0
-      for (const rp of roundPlayers) {
-        if (rp.state !== 'bust' && rp.puntos > max && rp.puntos <= 21) {
-          max = rp.puntos
-        }
-      }
-      for (const rp of roundPlayers) {
-        rp.ganador = rp.puntos === max && max > 0 && rp.state !== 'bust'
-        await rp.save()
-      }
-      round.status = 'ended'
-      await round.save()
-      Ws.io.to(game.id).emit('round:ended')
-      return
-    }
-    // Avanza turno (siguiente seatIndex "jugando")
-    const roomPlayers = await this.roomRepo.getPlayersInRoom(game.roomId)
-    const seatIndexesJugando = activos
-      .map((rp) => {
-        const foundRoomPlayer = roomPlayers.find((player) => player.userId === rp.userId)
-        return foundRoomPlayer?.seatIndex ?? 0
-      })
-      .sort((a, b) => a - b)
-    let next = null
-    for (let i = 1; i <= seatIndexesJugando.length; i++) {
-      const idx = (round.turnSeatIndex + i) % 7
-      if (seatIndexesJugando.includes(idx)) {
-        next = idx
-        break
-      }
-    }
-    if (next === null) {
-      round.status = 'ended'
-      await round.save()
-      Ws.io.to(game.id).emit('round:ended')
-      return
-    }
-    round.turnSeatIndex = next
-    await round.save()
-    Ws.io.to(game.id).emit('turn:next')
-  }
-
-  // Pedir carta (hit)
-  async hit(gameId: string, userId: string) {
-    const round = await this.repo.findCurrentRound(gameId)
-    if (!round) throw new Error('No hay ronda en curso')
-    const roundPlayer = await this.repo.findRoundPlayerByUser(round.id, userId)
-    if (!roundPlayer || roundPlayer.state !== 'jugando') throw new Error('No puedes pedir carta')
-
-    // Solo el jugador en turno
+  async getGameWithHostId(gameId: string): Promise<any> {
     const game = await this.repo.findGameById(gameId)
     if (!game) throw new Error('Game no encontrado')
-    const roomPlayers = await this.roomRepo.getPlayersInRoom(game.roomId)
-    const seatIndex = roomPlayers.find((p) => p.userId === userId)?.seatIndex
-    if (seatIndex !== round.turnSeatIndex) throw new Error('No es tu turno')
 
-    // Dar carta
-    const carta = round.deck.shift()
-    let cartas =
-      typeof roundPlayer.cartas === 'string' ? JSON.parse(roundPlayer.cartas) : roundPlayer.cartas
-    cartas.push(carta)
-    roundPlayer.cartas = cartas
-    roundPlayer.puntos = this.sumarPuntos(cartas)
-
-    // ¿Bust, bj, plantado?
-    if (roundPlayer.puntos > 21) {
-      roundPlayer.state = 'bust'
-    } else if (cartas.length === 2 && roundPlayer.puntos === 21) {
-      roundPlayer.state = 'bj'
-      roundPlayer.ganador = true
-    } else if (roundPlayer.puntos === 21) {
-      roundPlayer.state = 'plantado'
-      roundPlayer.ganador = false
-    }
-    await roundPlayer.save()
-    await round.save()
-    await this.advanceTurnOrFinishRound(round)
+    return this.addHostIdToGame(game)
   }
 
-  // Plantarse (stand)
-  async stand(gameId: string, userId: string) {
-    const round = await this.repo.findCurrentRound(gameId)
-    if (!round) throw new Error('No hay ronda en curso')
-    const roundPlayer = await this.repo.findRoundPlayerByUser(round.id, userId)
-    if (!roundPlayer || roundPlayer.state !== 'jugando') throw new Error('No puedes plantarte')
-
-    // Solo el jugador en turno
-    const game = await this.repo.findGameById(gameId)
-    if (!game) throw new Error('Game no encontrado')
-    const roomPlayers = await this.roomRepo.getPlayersInRoom(game.roomId)
-    const seatIndex = roomPlayers.find((p) => p.userId === userId)?.seatIndex
-    if (seatIndex !== round.turnSeatIndex) throw new Error('No es tu turno')
-
-    roundPlayer.state = 'plantado'
-    await roundPlayer.save()
-    await this.advanceTurnOrFinishRound(round)
-  }
-
-  // Estado actual de la ronda/juego para cada usuario
   async getCurrent(gameId: string, userId: string): Promise<RoundResponseDto> {
-    console.log('[DEBUG] getCurrent called with gameId:', gameId, 'and userId:', userId)
     const round = await this.repo.findCurrentRound(gameId)
     if (!round) throw new Error('No hay ronda en curso')
     const game = await this.repo.findGameById(gameId)
@@ -314,15 +332,18 @@ export class GameService {
     if (!room) throw new Error('Room no encontrada')
     const host = room.hostId === userId
     const roundPlayers = await this.repo.findRoundPlayers(round.id)
+    const roomPlayers = await this.roomRepo.getPlayersInRoom(room.id)
 
     const players: RoundPlayerResponseDto[] = []
     for (const rp of roundPlayers) {
       const user = await User.find(rp.userId)
       const nombre = user?.name || ''
+      const realCartas = typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas
+
       if (host || round.status === 'ended' || rp.userId === userId) {
         players.push({
           userId: rp.userId,
-          cartas: typeof rp.cartas === 'string' ? JSON.parse(rp.cartas) : rp.cartas,
+          cartas: realCartas,
           state: rp.state,
           puntos: rp.puntos,
           ganador: rp.ganador,
@@ -331,7 +352,7 @@ export class GameService {
       } else {
         players.push({
           userId: rp.userId,
-          cartas: [],
+          cartas: Array(realCartas.length).fill(null),
           state: rp.state,
           puntos: 0,
           ganador: false,
@@ -339,18 +360,27 @@ export class GameService {
         })
       }
     }
+    players.sort((a, b) => {
+      const aSeat = roomPlayers.find((rp) => rp.userId === a.userId)?.seatIndex ?? 0
+      const bSeat = roomPlayers.find((rp) => rp.userId === b.userId)?.seatIndex ?? 0
+      return aSeat - bSeat
+    })
+
+    // AQUÍ VA LA CLAVE: devolver el estado actual del juego también
     return {
       id: round.id,
       gameId: round.gameId,
       hostId: room.hostId,
-      status: round.status,
+      status: round.status, // Estado de la ronda actual
       deckCount: round.deck.length,
       turnSeatIndex: round.turnSeatIndex,
       players,
+      decisions: GameService.decisions.get(gameId) || {},
+      gameStatus: game.status, // Estado del juego completo
     }
   }
 
-  // Cancelar juego (si alguien se sale)
+
   async cancelGame(gameId: string) {
     const game = await this.repo.endGame(gameId)
     if (game) {
@@ -358,7 +388,12 @@ export class GameService {
     }
   }
 
-  // Continuar ronda (confirmación de jugadores)
+  /**
+   * Espera la decisión de todos los jugadores para continuar la ronda o terminar el juego.
+   * - Si alguien dice NO, termina el juego (`ended`)
+   * - Si todos dicen SÍ, inicia nueva ronda (`in_progress`)
+   * - Si faltan votos, deja el juego en estado `between_rounds`
+   */
   async continueRound(gameId: string, userId: string, decision: boolean) {
     const game = await this.repo.findGameById(gameId)
     if (!game) throw new Error('Game no encontrado')
@@ -369,14 +404,12 @@ export class GameService {
     const usersDecisions = GameService.decisions.get(gameId)!
     usersDecisions[userId] = decision
 
-    // Room actual y todos los userIds de esa room
     const room = await this.roomRepo.findRoomById(game.roomId)
     if (!room) throw new Error('Room no encontrada')
     const roomPlayers = await this.roomRepo.getPlayersInRoom(room.id)
-    const userIds = roomPlayers.map((p) => p.userId)
-    const total = userIds.length
+    const total = roomPlayers.length
 
-    // Si algún jugador puso "no", termina el juego y borra
+    // -- Si alguien dice NO: termina el juego
     if (Object.values(usersDecisions).includes(false)) {
       game.status = 'ended'
       await game.save()
@@ -385,18 +418,22 @@ export class GameService {
       return 'ended'
     }
 
-    // Si todos ya respondieron SÍ, inicia nueva ronda
+    // -- Si todos dicen SÍ: inicia nueva ronda
     if (
       Object.keys(usersDecisions).length === total &&
       Object.values(usersDecisions).every(Boolean)
     ) {
       GameService.decisions.delete(gameId)
       await this.startRound(gameId)
+      game.status = 'in_progress'
+      await game.save()
       Ws.io.to(game.id).emit('round:started')
       return 'started'
     }
 
-    // Faltan respuestas
+    // -- Faltan votos: deja el juego en estado entre rondas
+    game.status = 'between_rounds'
+    await game.save()
     Ws.io.to(game.id).emit('continue:waiting')
     return 'waiting'
   }

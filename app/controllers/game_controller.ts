@@ -15,6 +15,19 @@ export default class GameController {
     try {
       console.log('creando partida desde controller start')
       const payload = await request.validateUsing(startGameValidator)
+      const room = await this.service.roomRepo.findRoomById(payload.roomId)
+      if (!room) throw new Error('Room no encontrada')
+      if (room.status === 'in_game') {
+        return ResponseHelper.error(response, 'La sala ya está en juego.', 400)
+      }
+      const roomPlayers = await this.service.roomRepo.getPlayersInRoom(room.id)
+      if (roomPlayers.length < 4) {
+        return ResponseHelper.error(
+          response,
+          'Se requieren al menos 4 jugadores para iniciar.',
+          400
+        )
+      }
       const game = await this.service.createGame(payload.roomId)
       await this.service.startRound(game.id)
       return ResponseHelper.success(response, 'Partida iniciada', { gameId: game.id })
@@ -29,7 +42,9 @@ export default class GameController {
       await this.service.hit(payload.gameId, user!.id)
       return ResponseHelper.success(response, 'Carta pedida')
     } catch (error) {
-      return ResponseHelper.error(response, 'No se pudo pedir carta', 400, error)
+      // Si el error tiene message, úsalo; si no, usa el default
+      const message = error?.message || 'No se pudo pedir carta'
+      return ResponseHelper.error(response, message, 400, error)
     }
   }
 

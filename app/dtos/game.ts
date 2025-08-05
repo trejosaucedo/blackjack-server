@@ -1,7 +1,7 @@
 export interface Card {
   valor: string // "A", "2", ..., "10", "J", "Q", "K"
   valorNumerico: number // 1-13
-  palo: string // "corazones", "picas", "tréboles", "diamantes"
+  palo: string // "corazones", "picas", "treboles", "diamantes"
 }
 
 export interface CreateGameDto {
@@ -24,6 +24,8 @@ export interface RoundResponseDto {
   turnSeatIndex: number
   players: RoundPlayerResponseDto[]
   hostId: string
+  decisions?: { [userId: string]: boolean }
+  gameStatus: 'in_progress' | 'between_rounds' | 'ended'
 }
 
 export interface RoundPlayerResponseDto {
